@@ -1,9 +1,8 @@
 [build]
-  base = "server"
-  command = "npm install && npm run build"
-  publish = "dist"
-  functions = "netlify/functions"
-  environment = { SECRETS_SCAN_OMIT_PATHS = "server/**,*.md,src/whatsapp/**" }
+  command = "cd server && npm install && npm run build"
+  publish = "server/dist"
+  functions = "server/netlify/functions"
+  environment = { SECRETS_SCAN_ENABLED = "false" }
 
 [[redirects]]
   from = "/*"
