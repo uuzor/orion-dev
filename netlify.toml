@@ -1,5 +1,8 @@
 [build]
   command = "npm install && npm run build"
-  publish = "server/dist"
-  functions = "server/netlify/functions"
+  publish = "dist"
+  functions = "netlify/functions"
   environment = { SECRETS_SCAN_ENABLED = "false" }
+
+[build.environment]
+  NODE_VERSION = "18"
