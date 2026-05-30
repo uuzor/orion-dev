@@ -71,14 +71,59 @@ export function createIntelligenceRoutes(): Router {
       }
 
       // Fetch business for context
-      const business = await BusinessModel.findById(business_id).lean();
+      const business: any = await BusinessModel.findById(business_id).lean();
 
       if (!business) {
         return res.status(404).json({ error: `Business ${business_id} not found` });
       }
 
-      // Build scan task
-      const scanTask = buildScanTask(focus, business, competitors);
+      // Fetch additional business data for rich context
+      let businessData: any = {
+        ...business,
+        leads: [],
+        campaigns: [],
+        opportunities: []
+      };
+
+      try {
+        // Import models
+        const { LeadModel } = await import('../db/models/Lead.js');
+        const { CampaignModel } = await import('../db/models/Campaign.js');
+        const { OpportunityModel } = await import('../db/models/Opportunity.js');
+        const { UserModel } = await import('../db/models/User.js');
+
+        // Fetch owner info
+        const owner = await UserModel.findById(business.owner_id || business.createdBy).select('name email').lean();
+        if (owner) {
+          businessData.owner = owner;
+        }
+
+        // Fetch recent leads
+        businessData.leads = await LeadModel.find({ business_id })
+          .sort('-createdAt')
+          .limit(20)
+          .select('name email status score lastContact source')
+          .lean();
+
+        // Fetch recent campaigns
+        businessData.campaigns = await CampaignModel.find({ business_id })
+          .sort('-createdAt')
+          .limit(10)
+          .select('name status type startDate budget metrics')
+          .lean();
+
+        // Fetch past opportunities
+        businessData.opportunities = await OpportunityModel.find({ business_id })
+          .sort('-createdAt')
+          .limit(10)
+          .select('title category status urgency impact_score')
+          .lean();
+      } catch (dataError) {
+        console.error('[Intelligence] Failed to load additional business data:', dataError);
+      }
+
+      // Build scan task with rich context
+      const scanTask = buildScanTask(focus, businessData, competitors);
 
       console.log(`[Intelligence] Starting scan for ${business_id}: ${focus}`);
 
@@ -92,16 +137,10 @@ export function createIntelligenceRoutes(): Router {
       });
 
       try {
-        // Run research agent
+        // Run research agent with rich business context
         const result = await runResearchAgent({
           task: scanTask,
-          businessContext: {
-            business_id,
-            name: business.name,
-            type: business.type,
-            city: business.city,
-            competitors,
-          },
+          businessContext: businessData as any,
           onStep: (step) => {
             console.log(`[Intelligence] ${step.agent}: ${step.action}`);
           },
@@ -219,27 +258,64 @@ function buildScanTask(
   business: any,
   competitors: string[]
 ): string {
-  const businessInfo = `Business: ${business.name} (${business.type})`;
-  const competitorInfo = competitors.length > 0 
-    ? ` Competitors: ${competitors.join(', ')}.`
+  // Build rich business context
+  const ownerInfo = business.owner ? `Owner: ${business.owner.name} (${business.owner.email})` : '';
+  const businessInfo = `Business: ${business.name} (${business.type}) in ${business.city || 'Unknown location'}`;
+  
+  // Leads context
+  const leadsInfo = business.leads?.length > 0 
+    ? `\n\nCURRENT LEADS (${business.leads.length}):\n${business.leads.slice(0, 10).map((l: any) => 
+      `- ${l.name}: ${l.email} (Status: ${l.status}, Score: ${l.score || 'N/A'}${l.lastContact ? ', Last: ' + new Date(l.lastContact).toLocaleDateString() : ''})`
+    ).join('\n')}`
+    : '\n\nCURRENT LEADS: No leads yet';
+
+  // Campaigns context
+  const campaignsInfo = business.campaigns?.length > 0
+    ? `\n\nACTIVE CAMPAIGNS (${business.campaigns.length}):\n${business.campaigns.map((c: any) => 
+      `- ${c.name}: ${c.status} (${c.type || 'General'})${c.budget ? ', Budget: $' + c.budget : ''}`
+    ).join('\n')}`
+    : '\n\nACTIVE CAMPAIGNS: No campaigns yet';
+
+  // Past opportunities context
+  const opportunitiesInfo = business.opportunities?.length > 0
+    ? `\n\nPAST INTELLIGENCE FINDINGS (${business.opportunities.length}):\n${business.opportunities.slice(0, 5).map((o: any) => 
+      `- [${o.urgency}] ${o.title} (${o.category}, ${o.impact_score}/10 impact)`
+    ).join('\n')}`
+    : '\n\nPAST INTELLIGENCE: No previous findings';
+
+  // Competitors
+  const competitorInfo = competitors.length > 0
+    ? `\n\nCompetitors to research: ${competitors.join(', ')}`
     : '';
 
+  // Build task based on focus
+  let focusInstructions = '';
   switch (focus) {
     case 'competitors':
-      return `${businessInfo}.${competitorInfo} Analyze competitor strategies, marketing approaches, and recent activities.`;
-
+      focusInstructions = 'Focus on competitor analysis: pricing, marketing strategies, and market positioning.';
+      break;
     case 'market_trends':
-      return `${businessInfo}. Identify current market trends, emerging technologies, and industry shifts relevant to ${business.type} businesses.`;
-
-    case 'customer_insights':
-      return `${businessInfo}. Find customer pain points, unmet needs, and buying behavior patterns in the ${business.type} industry.`;
-
-    case 'opportunities':
-      return `${businessInfo}. Identify business growth opportunities, expansion areas, and untapped markets.`;
-
+      focusInstructions = 'Focus on current market trends, emerging opportunities, and industry shifts.';
+      break;
+    case 'leads':
+      focusInstructions = 'Focus on identifying new lead opportunities and market segments to target.';
+      break;
+    case 'pricing':
+      focusInstructions = 'Focus on pricing strategies and competitive pricing analysis.';
+      break;
     default:
-      return `${businessInfo}.${competitorInfo} Conduct comprehensive market intelligence scan. Find opportunities, threats, trends, and competitive landscape insights.`;
+      focusInstructions = 'Conduct comprehensive market intelligence covering opportunities, threats, competitors, and trends.';
   }
+
+  return `You are an expert business intelligence analyst for a ${business.type || 'business'}.
+
+${ownerInfo}
+${businessInfo}${leadsInfo}${campaignsInfo}${opportunitiesInfo}${competitorInfo}
+
+TASK: ${focusInstructions}
+
+Provide actionable insights specific to this business, considering their current leads, campaigns, and past findings.
+Format opportunities as: title, description, category, urgency (low/medium/high), impact_score (1-10), source, suggested_action.`;
 }
 
 export default createIntelligenceRoutes;
