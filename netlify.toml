@@ -1,15 +1,8 @@
 [build]
-  command = "cd server && npm install && npm run build"
+  command = "npm install && npm run build"
+  publish = "dist"
   functions = "netlify/functions"
+  environment = { SECRETS_SCAN_ENABLED = "false" }
 
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/api"
-  status = 200
-  force = true
-
-[[redirects]]
-  from = "/health"
-  to = "/.netlify/functions/api"
-  status = 200
-  force = true
+[build.environment]
+  NODE_VERSION = "18"

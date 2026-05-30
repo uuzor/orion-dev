@@ -1,6 +1,10 @@
 {
   "name": "orion-dev",
   "scripts": {
-    "dev": "vercel dev"
-  }
+    "dev": "vercel dev",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {},
+  "devDependencies": {}
 }
