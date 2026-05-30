@@ -1,7 +1,11 @@
 [build]
-  base = ""
+  base = "server"
+  command = "npm install && npm run build"
   publish = "dist"
   functions = "netlify/functions"
   environment = { SECRETS_SCAN_OMIT_PATHS = "server/**,*.md" }
 
-# Note: dist is pre-built, _redirects copied to dist folder for API redirects
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
