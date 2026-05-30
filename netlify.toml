@@ -1,10 +1,5 @@
 [build]
-  command = "cd server && npm install && npm run build"
+  command = "npm install && npm run build"
   publish = "server/dist"
   functions = "server/netlify/functions"
   environment = { SECRETS_SCAN_ENABLED = "false" }
-
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
