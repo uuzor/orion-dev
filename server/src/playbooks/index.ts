@@ -779,17 +779,22 @@ export function buildResearchPrompt(
     name?: string;
     city?: string;
     location?: string;
+    owner?: { name?: string; email?: string };
+    leads?: any[];
+    campaigns?: any[];
+    opportunities?: any[];
+    stats?: { totalLeads?: number; activeCampaigns?: number; revenue?: number };
     [key: string]: any;
   }
 ): string {
   const playbook = getPlaybook(vertical);
-  
+
   const contextVars = {
     city: businessContext.city || 'Unknown',
     location: businessContext.location || businessContext.city || 'Unknown',
     region: businessContext.region || businessContext.city || 'Unknown',
   };
-  
+
   const scanTargets = playbook.scan_targets
     .filter(s => s.priority === 'critical' || s.priority === 'high')
     .map(s => {
@@ -800,11 +805,39 @@ export function buildResearchPrompt(
       return query;
     })
     .join('\n');
+
+  // Build rich business context
+  const ownerInfo = businessContext.owner ? `Owner: ${businessContext.owner.name || 'Unknown'} (${businessContext.owner.email || 'N/A'})` : '';
   
+  const leadsInfo = ((businessContext.leads || []).length) > 0
+    ? `\n\nCURRENT LEADS (${(businessContext.leads || []).length}):\n${businessContext.leads?.slice(0, 10).map((l: any) => 
+      `- ${l.name || 'Unknown'}: ${l.email || 'N/A'} (Status: ${l.status || 'Unknown'}, Score: ${l.score || 'N/A'})`
+    ).join('\n')}`
+    : '\n\nCURRENT LEADS: No leads yet';
+
+  const campaignsInfo = ((businessContext.campaigns || []).length) > 0
+    ? `\n\nACTIVE CAMPAIGNS (${(businessContext.campaigns || []).length}):\n${businessContext.campaigns?.map((c: any) => 
+      `- ${c.name || 'Unknown'}: ${c.status || 'Unknown'} (${c.type || 'General'})${c.budget ? ', Budget: $' + c.budget : ''}`
+    ).join('\n')}`
+    : '\n\nACTIVE CAMPAIGNS: No campaigns yet';
+
+  const opportunitiesInfo = ((businessContext.opportunities || []).length) > 0
+    ? `\n\nPAST INTELLIGENCE FINDINGS (${(businessContext.opportunities || []).length}):\n${businessContext.opportunities?.slice(0, 5).map((o: any) => 
+      `- [${o.urgency || 'medium'}] ${o.title || 'Unknown'} (${o.category || 'general'}, ${o.impact_score || 5}/10 impact)`
+    ).join('\n')}`
+    : '\n\nPAST INTELLIGENCE: No previous findings';
+
+  const statsInfo = businessContext.stats 
+    ? `\n\nKEY METRICS:\n- Total Leads: ${businessContext.stats.totalLeads || 0}\n- Active Campaigns: ${businessContext.stats.activeCampaigns || 0}\n- Revenue: ${businessContext.stats.revenue ? '$' + businessContext.stats.revenue : 'Not tracked'}`
+    : '';
+
   return `${playbook.intelligence_prompt}
 
+BUSINESS CONTEXT:
+${ownerInfo}
 Business: ${businessContext.name || 'Unknown'}
 Vertical: ${playbook.display_name}
+${leadsInfo}${campaignsInfo}${opportunitiesInfo}${statsInfo}
 
 Key pain points for this vertical:
 ${playbook.pain_points.map(p => `- ${p}`).join('\n')}
@@ -814,7 +847,7 @@ ${scanTargets}
 
 Task: ${task}
 
-Provide structured findings with sources and suggested actions.`;
+Provide structured findings with sources and suggested actions, specifically tailored to this business's current situation.`;
 }
 
 /**

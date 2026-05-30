@@ -46,6 +46,12 @@ export interface BusinessContext {
   type?: string;
   city?: string;
   competitors?: string[];
+  // Rich context for agents
+  owner?: { name?: string; email?: string };
+  leads?: Array<{ name?: string; email?: string; status?: string; score?: number; lastContact?: Date }>;
+  campaigns?: Array<{ name?: string; status?: string; type?: string; budget?: number }>;
+  opportunities?: Array<{ title?: string; category?: string; status?: string; urgency?: string; impact_score?: number }>;
+  stats?: { totalLeads?: number; activeCampaigns?: number; revenue?: number };
   [key: string]: any;
 }
 

@@ -259,6 +259,7 @@ export function createAgentRoutes(): Router {
 
   /**
    * Chat with the LLM directly (no agents).
+   * Context-aware: includes user and business data in the conversation.
    *
    * Body:
    *   {
@@ -285,6 +286,7 @@ export function createAgentRoutes(): Router {
   router.post('/chat', verifyJWT, async (req: Request, res: Response, next: NextFunction) => {
     try {
       const { message, session_id, business_id } = req.body;
+      const userId = (req.user as any)?.id;
       const actualBusinessId = business_id || await getBusinessId(req);
 
       if (!message) {
@@ -294,10 +296,56 @@ export function createAgentRoutes(): Router {
       // Try to get LLM, return error if not configured
       const llm = getLLMOrDemo();
       if (!llm) {
-        return res.status(503).json({ 
+        return res.status(503).json({
           error: 'AI chat is not configured on this server. Set AIMLAPI_KEY or TOKENROUTER_API_KEY in your environment variables.',
           reply: 'AI chat is not available. Please configure an LLM provider to enable this feature.'
         });
+      }
+
+      // Fetch user and business data for context
+      let userContext = '';
+      let businessContext = '';
+      
+      try {
+        // Fetch user data
+        const UserModel = (await import('../db/models/User.js')).UserModel;
+        const user = await UserModel.findById(userId).lean();
+        if (user) {
+          userContext = `User: ${user.name || 'Unknown'} (${user.email})`;
+        }
+
+        // Fetch business data with related entities
+        const business: any = await BusinessModel.findById(actualBusinessId)
+          .populate('leads', 'name email status score lastContact')
+          .populate('campaigns', 'name status type startDate')
+          .lean();
+        
+        if (business) {
+          businessContext = `
+BUSINESS CONTEXT:
+- Business: ${business.name}
+- Type: ${business.type}
+- Location: ${business.city || 'Not specified'}${business.country ? ', ' + business.country : ''}
+- Industry: ${business.industry || 'General'}
+- Website: ${business.website || 'Not specified'}
+- Description: ${business.description || 'No description'}
+- Plan: ${business.plan || 'free'}
+- Created: ${business.createdAt ? new Date(business.createdAt).toLocaleDateString() : 'Unknown'}
+
+RECENT LEADS (${business.leads?.length || 0}):
+${business.leads?.map((l: any) => `- ${l.name}: ${l.email} (Status: ${l.status}, Score: ${l.score || 'N/A'})`).join('\n') || 'No leads yet'}
+
+RECENT CAMPAIGNS (${business.campaigns?.length || 0}):
+${business.campaigns?.map((c: any) => `- ${c.name}: ${c.status} (${c.type})`).join('\n') || 'No campaigns yet'}
+
+KEY METRICS:
+- Total Leads: ${business.stats?.totalLeads || 0}
+- Active Campaigns: ${business.stats?.activeCampaigns || 0}
+- Revenue: ${business.stats?.revenue ? '$' + business.stats.revenue : 'Not tracked'}
+`;
+        }
+      } catch (ctxError) {
+        console.error('[Chat] Failed to load context:', ctxError);
       }
 
       // Fetch or create chat session
@@ -320,8 +368,33 @@ export function createAgentRoutes(): Router {
         timestamp: new Date().toISOString(),
       });
 
-      // Call LLM
-      const response = await llm.invoke(message);
+      // Build system prompt with context
+      const isFirstMessage = session.messages.filter(m => m.role === 'user').length === 1;
+      const systemPrompt = `You are Orion, an AI business assistant helping a user manage their business.
+
+${userContext}
+
+${businessContext}
+
+IMPORTANT INSTRUCTIONS:
+1. You have access to the user's business data above - use it to give personalized advice.
+2. When they ask about "my business", "my leads", "my campaigns", use the data provided above.
+3. Be specific and actionable in your recommendations based on their actual data.
+4. If they greet you (hello, hi, etc.), greet them by name: "${userContext.split('(')[0].replace('User: ', '') || 'there'}" and ask how you can help with their business.
+5. Keep responses concise but informative.
+6. Focus on actionable advice related to their business growth.`;
+
+      // Build conversation history for LLM
+      const conversationHistory = [
+        { role: 'system', content: systemPrompt },
+        ...session.messages.slice(-10).map((m) => ({
+          role: m.role,
+          content: m.content
+        }))
+      ];
+
+      // Call LLM with full context
+      const response = await llm.invoke(conversationHistory);
       const reply = typeof response.content === 'string' ? response.content : JSON.stringify(response);
 
       // Add assistant message
