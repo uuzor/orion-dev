@@ -17,6 +17,7 @@
     "@langchain/openai": "^0.3.16",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "@speechmatics/real-time-client": "^8.3.2",
+    "@vendia/serverless-express": "^4.12.6",
     "bcrypt": "^6.0.0",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.6",
