@@ -1,5 +1,6 @@
 exports.handler = async function(event, context) {
-  const path = event.path || event.rawPath || '/';
+  // Use query param path if provided (from redirect), otherwise use event path
+  const path = event.queryStringParameters?.path || event.path || event.rawPath || '/';
   const method = event.httpMethod;
   
   // CORS headers
@@ -16,7 +17,7 @@ exports.handler = async function(event, context) {
   }
   
   // Route handling
-  let response = { error: 'Not found', receivedPath: path, query: event.queryStringParameters };
+  let response = { error: 'Not found', path };
   let statusCode = 404;
   
   // Health endpoints
@@ -41,7 +42,7 @@ exports.handler = async function(event, context) {
   // Entity routes
   else if (path.startsWith('/api/entities/')) {
     const entity = path.split('/')[3];
-    response = { message: `${entity} routes - working!`, path: path };
+    response = { message: `${entity} routes - working!`, path };
     statusCode = 200;
   }
   // Agent routes

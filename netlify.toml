@@ -5,30 +5,35 @@
 
 [[redirects]]
   from = "/health"
-  to = "/.netlify/functions/api"
+  to = "/.netlify/functions/api?path=/health"
   status = 200
 
 [[redirects]]
   from = "/api/entities/*"
-  to = "/.netlify/functions/api"
+  to = "/.netlify/functions/api?path=/api/entities/:splat"
   status = 200
 
 [[redirects]]
   from = "/api/auth/*"
-  to = "/.netlify/functions/api"
+  to = "/.netlify/functions/api?path=/api/auth/:splat"
   status = 200
 
 [[redirects]]
   from = "/api/dashboard/*"
-  to = "/.netlify/functions/api"
+  to = "/.netlify/functions/api?path=/api/dashboard/:splat"
   status = 200
 
 [[redirects]]
   from = "/api/agents/*"
-  to = "/.netlify/functions/api"
+  to = "/.netlify/functions/api?path=/api/agents/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/api/health"
+  to = "/.netlify/functions/api?path=/api/health"
   status = 200
 
 [[redirects]]
   from = "/api/*"
-  to = "/.netlify/functions/api"
+  to = "/.netlify/functions/api?path=/api/:splat"
   status = 200
