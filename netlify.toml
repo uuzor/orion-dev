@@ -2,6 +2,7 @@
   base = ""
   publish = "dist"
   functions = "netlify/functions"
+  command = "npm install && npm run build"
   environment = { SECRETS_SCAN_OMIT_PATHS = "server/**,*.md" }
 
 # Note: API redirects handled via _redirects file at root
