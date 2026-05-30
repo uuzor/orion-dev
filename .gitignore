@@ -33,4 +33,4 @@ dist-ssr
 # Server build artifacts
 server/node_modules
 
-.env.local
+.env.local!dist/_redirects
