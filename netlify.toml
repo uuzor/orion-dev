@@ -4,38 +4,4 @@
   functions = "netlify/functions"
   environment = { SECRETS_SCAN_OMIT_PATHS = "server/**,*.md" }
 
-# Order matters! More specific routes first
-[[redirects]]
-  from = "/api/entities/*"
-  to = "/.netlify/functions/api"
-  status = 302
-
-[[redirects]]
-  from = "/api/auth/*"
-  to = "/.netlify/functions/api"
-  status = 302
-
-[[redirects]]
-  from = "/api/dashboard/*"
-  to = "/.netlify/functions/api"
-  status = 302
-
-[[redirects]]
-  from = "/api/agents/*"
-  to = "/.netlify/functions/api"
-  status = 302
-
-[[redirects]]
-  from = "/api/health"
-  to = "/.netlify/functions/api"
-  status = 302
-
-[[redirects]]
-  from = "/health"
-  to = "/.netlify/functions/api"
-  status = 302
-
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/api"
-  status = 302
+# Note: API redirects handled via _redirects file at root
