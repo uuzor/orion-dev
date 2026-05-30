@@ -1,7 +1,10 @@
 exports.handler = async function(event, context) {
-  // Use query param path if provided (from redirect), otherwise use event path
-  const path = event.queryStringParameters?.path || event.path || event.rawPath || '/';
-  const method = event.httpMethod;
+  // Get the path from the raw URL
+  const rawUrl = event.rawPath || event.path || '/';
+  const method = event.httpMethod || 'GET';
+  
+  console.log('RAW URL:', rawUrl);
+  console.log('Method:', method);
   
   // CORS headers
   const headers = {
@@ -16,13 +19,16 @@ exports.handler = async function(event, context) {
     return { statusCode: 200, headers, body: '' };
   }
   
+  // Default path (when called directly, not via redirect)
+  let path = rawUrl;
+  
   // Route handling
-  let response = { error: 'Not found', path };
+  let response = { error: 'Not found', path, rawUrl, method };
   let statusCode = 404;
   
   // Health endpoints
   if (path === '/api/health' || path === '/health') {
-    response = { status: 'ok', timestamp: new Date().toISOString() };
+    response = { status: 'ok', timestamp: new Date().toISOString(), from: 'netlify-function' };
     statusCode = 200;
   }
   // Auth routes
@@ -42,7 +48,7 @@ exports.handler = async function(event, context) {
   // Entity routes
   else if (path.startsWith('/api/entities/')) {
     const entity = path.split('/')[3];
-    response = { message: `${entity} routes - working!`, path };
+    response = { message: `${entity} routes - working!`, path, rawUrl };
     statusCode = 200;
   }
   // Agent routes
