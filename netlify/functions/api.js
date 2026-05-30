@@ -1,9 +1,6 @@
 exports.handler = async function(event, context) {
-  const path = event.path || event.rawPath;
+  const path = event.path || event.rawPath || '/';
   const method = event.httpMethod;
-  
-  // Debug: log what we receive
-  console.log('Received:', method, path);
   
   // CORS headers
   const headers = {
@@ -18,42 +15,37 @@ exports.handler = async function(event, context) {
     return { statusCode: 200, headers, body: '' };
   }
   
-  // Route handling - normalize path
-  let normalizedPath = path;
-  if (normalizedPath.startsWith('/api')) {
-    normalizedPath = normalizedPath;
-  }
-  
-  let response = { error: 'Not found', path: normalizedPath };
+  // Route handling
+  let response = { error: 'Not found', receivedPath: path, query: event.queryStringParameters };
   let statusCode = 404;
   
   // Health endpoints
-  if (normalizedPath === '/api/health' || normalizedPath === '/health') {
-    response = { status: 'ok', timestamp: new Date().toISOString(), path: normalizedPath };
+  if (path === '/api/health' || path === '/health') {
+    response = { status: 'ok', timestamp: new Date().toISOString() };
     statusCode = 200;
   }
   // Auth routes
-  else if (normalizedPath === '/api/auth/login' && method === 'POST') {
+  else if (path === '/api/auth/login' && method === 'POST') {
     response = { message: 'Auth routes need real implementation' };
     statusCode = 200;
   }
-  else if (normalizedPath === '/api/auth/register' && method === 'POST') {
+  else if (path === '/api/auth/register' && method === 'POST') {
     response = { message: 'Auth routes need real implementation' };
     statusCode = 200;
   }
   // Dashboard routes
-  else if (normalizedPath === '/api/dashboard/stats' && method === 'GET') {
+  else if (path === '/api/dashboard/stats' && method === 'GET') {
     response = { message: 'Dashboard routes need real implementation' };
     statusCode = 200;
   }
   // Entity routes
-  else if (normalizedPath.startsWith('/api/entities/')) {
-    const entity = normalizedPath.split('/')[3];
-    response = { message: `${entity} routes - working!`, path: normalizedPath };
+  else if (path.startsWith('/api/entities/')) {
+    const entity = path.split('/')[3];
+    response = { message: `${entity} routes - working!`, path: path };
     statusCode = 200;
   }
   // Agent routes
-  else if (normalizedPath === '/api/agents/super' && method === 'POST') {
+  else if (path === '/api/agents/super' && method === 'POST') {
     response = { message: 'Agent routes need real implementation' };
     statusCode = 200;
   }
